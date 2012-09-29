@@ -20,7 +20,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
@@ -28,68 +27,31 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
  * Multiverse's {@link Listener} for players.
  */
 public class MVPlayerListener implements Listener {
-    private MultiverseCore plugin;
-    private MVWorldManager worldManager;
-    private PermissionTools pt;
+    private final MultiverseCore plugin;
+    private final MVWorldManager worldManager;
+    private final PermissionTools pt;
 
-    private final ReentrantLock worldsLock = new ReentrantLock();
-    private final Map<String, String> playerWorld = new HashMap<String, String>();
+    private final Map<String, String> playerWorld = new ConcurrentHashMap<String, String>();
 
     public MVPlayerListener(MultiverseCore plugin) {
         this.plugin = plugin;
         worldManager = plugin.getMVWorldManager();
         pt = new PermissionTools(plugin);
     }
+
     /**
-     * This method is called when a player wants to chat.
-     * @param event The Event that was fired.
+     * @return the playerWorld-map
      */
-    @EventHandler
-    public void playerChat(AsyncPlayerChatEvent event) {
-        if (event.isCancelled()) {
-            return;
-        }
-        // Check whether the Server is set to prefix the chat with the World name.
-        // If not we do nothing, if so we need to check if the World has an Alias.
-        if (plugin.getMVConfig().getPrefixChat()) {
-            String world;
-            Thread thread = Thread.currentThread();
-            if (worldsLock.isLocked()) {
-                plugin.log(Level.FINEST, "worldsLock is locked when attempting to handle player chat on thread: " + thread);
-            }
-            worldsLock.lock();
-            try {
-                plugin.log(Level.FINEST, "Handling player chat on thread: " + thread);
-                world = playerWorld.get(event.getPlayer().getName());
-                if (world == null) {
-                    world = event.getPlayer().getWorld().getName();
-                    playerWorld.put(event.getPlayer().getName(), world);
-                }
-            } finally {
-                worldsLock.unlock();
-            }
-            String prefix = "";
-            // If we're not a MV world, don't do anything
-            if (!this.worldManager.isMVWorld(world)) {
-                return;
-            }
-            MultiverseWorld mvworld = this.worldManager.getMVWorld(world);
-            if (mvworld.isHidden()) {
-                return;
-            }
-            prefix = mvworld.getColoredWorldString();
-            String format = event.getFormat();
-            event.setFormat("[" + prefix + "]" + format);
-        }
+    public Map<String, String> getPlayerWorld() {
+        return playerWorld;
     }
 
     /**
@@ -163,17 +125,7 @@ public class MVPlayerListener implements Listener {
         }
         // Handle the Players GameMode setting for the new world.
         this.handleGameMode(event.getPlayer(), event.getPlayer().getWorld());
-        Thread thread = Thread.currentThread();
-        if (worldsLock.isLocked()) {
-            plugin.log(Level.FINEST, "worldsLock is locked when attempting to cache player world on thread: " + thread);
-        }
-        worldsLock.lock();
-        try {
-            plugin.log(Level.FINEST, "Caching player world on thread: " + thread);
-            playerWorld.put(p.getName(), p.getWorld().getName());
-        } finally {
-            worldsLock.unlock();
-        }
+        playerWorld.put(p.getName(), p.getWorld().getName());
     }
 
     /**
@@ -184,17 +136,7 @@ public class MVPlayerListener implements Listener {
     public void playerChangedWorld(PlayerChangedWorldEvent event) {
         // Permissions now determine whether or not to handle a gamemode.
         this.handleGameMode(event.getPlayer(), event.getPlayer().getWorld());
-        Thread thread = Thread.currentThread();
-        if (worldsLock.isLocked()) {
-            plugin.log(Level.FINEST, "worldsLock is locked when attempting to cache player world on thread: " + thread);
-        }
-        worldsLock.lock();
-        try {
-            plugin.log(Level.FINEST, "Caching player world on thread: " + thread);
-            playerWorld.put(event.getPlayer().getName(), event.getPlayer().getWorld().getName());
-        } finally {
-            worldsLock.unlock();
-        }
+        playerWorld.put(event.getPlayer().getName(), event.getPlayer().getWorld().getName());
     }
 
     /**
@@ -342,6 +284,7 @@ public class MVPlayerListener implements Listener {
         // Remove the player 1 tick after the login. I'm sure there's GOT to be a better way to do this...
         this.plugin.getServer().getScheduler().scheduleSyncDelayedTask(this.plugin,
             new Runnable() {
+                @Override
                 public void run() {
                     player.teleport(plugin.getMVWorldManager().getFirstSpawnWorld().getSpawnLocation());
                 }
@@ -371,6 +314,7 @@ public class MVPlayerListener implements Listener {
         if (!this.pt.playerCanIgnoreGameModeRestriction(world, player)) {
             this.plugin.getServer().getScheduler().scheduleSyncDelayedTask(this.plugin,
                 new Runnable() {
+                    @Override
                     public void run() {
                         // Check that the player is in the new world and they haven't been teleported elsewhere or the event cancelled.
                         if (player.getWorld() == world.getCBWorld()) {

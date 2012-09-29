@@ -40,28 +40,28 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
         return instance;
     }
 
-    private final ReentrantLock propertyLock = new ReentrantLock();
-
     @Property
-    private boolean enforceaccess;
+    private volatile boolean enforceaccess;
     @Property
-    private boolean prefixchat;
+    private volatile boolean prefixchat;
     @Property
-    private boolean teleportintercept;
+    private volatile boolean useasyncchat;
     @Property
-    private boolean firstspawnoverride;
+    private volatile boolean teleportintercept;
     @Property
-    private boolean displaypermerrors;
+    private volatile boolean firstspawnoverride;
     @Property
-    private int globaldebug;
+    private volatile boolean displaypermerrors;
     @Property
-    private int messagecooldown;
+    private volatile int globaldebug;
     @Property
-    private double version;
+    private volatile int messagecooldown;
     @Property
-    private String firstspawnworld;
+    private volatile double version;
     @Property
-    private int teleportcooldown;
+    private volatile String firstspawnworld;
+    @Property
+    private volatile int teleportcooldown;
 
     public MultiverseCoreConfiguration(MultiverseCore core) {
         super();
@@ -84,6 +84,7 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
     protected void setDefaults() {
         // BEGIN CHECKSTYLE-SUPPRESSION: MagicNumberCheck
         enforceaccess = false;
+        useasyncchat = true;
         prefixchat = true;
         teleportintercept = true;
         firstspawnoverride = true;
@@ -130,17 +131,7 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
      */
     @Override
     public boolean getPrefixChat() {
-        Thread thread = Thread.currentThread();
-        if (propertyLock.isLocked()) {
-            core.log(Level.FINEST, "propertyLock is locked when attempting to get prefixchat on thread: " + thread);
-        }
-        propertyLock.lock();
-        try {
-            core.log(Level.FINEST, "Getting prefixchat on thread: " + thread);
-            return this.prefixchat;
-        } finally {
-            propertyLock.unlock();
-        }
+        return this.prefixchat;
     }
 
     /**
@@ -148,17 +139,7 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
      */
     @Override
     public void setPrefixChat(boolean prefixChat) {
-        Thread thread = Thread.currentThread();
-        if (propertyLock.isLocked()) {
-            core.log(Level.FINEST, "propertyLock is locked when attempting to set prefixchat on thread: " + thread);
-        }
-        propertyLock.lock();
-        try {
-            core.log(Level.FINEST, "Setting prefixchat on thread: " + thread);
-            this.prefixchat = prefixChat;
-        } finally {
-            propertyLock.unlock();
-        }
+        this.prefixchat = prefixChat;
     }
 
     /**
@@ -287,5 +268,15 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
     @Override
     public void setTeleportCooldown(int teleportCooldown) {
         this.teleportcooldown = teleportCooldown;
+    }
+
+    @Override
+    public void setUseAsyncChat(boolean useAsyncChat) {
+        this.useasyncchat = useAsyncChat;
+    }
+
+    @Override
+    public boolean getUseAsyncChat() {
+        return this.useasyncchat;
     }
 }
