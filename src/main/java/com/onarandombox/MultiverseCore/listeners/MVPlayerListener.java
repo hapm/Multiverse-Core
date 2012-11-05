@@ -7,6 +7,7 @@
 
 package com.onarandombox.MultiverseCore.listeners;
 
+import com.dumptruckman.minecraft.util.Logging;
 import com.onarandombox.MultiverseCore.MultiverseCore;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.api.MultiverseWorld;
@@ -192,6 +193,8 @@ public class MVPlayerListener implements Listener {
                     + "' don't have the FUNDS required to enter it.");
             return;
         }
+        
+        // Check if player is allowed to enter the world if we're enforcing permissions
         if (plugin.getMVConfig().getEnforceAccess()) {
             event.setCancelled(!pt.playerCanGoFromTo(fromWorld, toWorld, teleporter, teleportee));
             if (event.isCancelled() && teleporter != null) {
@@ -199,13 +202,31 @@ public class MVPlayerListener implements Listener {
                         + "' was DENIED ACCESS to '" + toWorld.getAlias()
                         + "' because '" + teleporter.getName()
                         + "' don't have: multiverse.access." + event.getTo().getWorld().getName());
-            } else {
-                this.stateSuccess(teleportee.getName(), toWorld.getAlias());
+                return;
             }
         } else {
             this.plugin.log(Level.FINE, "Player '" + teleportee.getName()
                     + "' was allowed to go to '" + toWorld.getAlias() + "' because enforceaccess is off.");
         }
+        
+        // Does a limit actually exist?
+        if (toWorld.getPlayerLimit() > -1) {
+            // Are there equal or more people on the world than the limit?
+            if (toWorld.getCBWorld().getPlayers().size() >= toWorld.getPlayerLimit()) {
+                // Ouch the world is full, lets see if the player can bypass that limitation
+                if (!pt.playerCanBypassPlayerLimit(toWorld, teleporter, teleportee)) {
+                    this.plugin.log(Level.FINE, "Player '" + teleportee.getName()
+                            + "' was DENIED ACCESS to '" + toWorld.getAlias()
+                            + "' because the world is full and '" + teleporter.getName()
+                            + "' doesn't have: mv.bypass.playerlimit." + event.getTo().getWorld().getName());
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+        
+        // By this point anything cancelling the event has returned on the method, meaning the teleport is a success \o/
+        this.stateSuccess(teleportee.getName(), toWorld.getAlias());
     }
 
     private void stateSuccess(String playerName, String worldName) {
@@ -318,16 +339,13 @@ public class MVPlayerListener implements Listener {
                     public void run() {
                         // Check that the player is in the new world and they haven't been teleported elsewhere or the event cancelled.
                         if (player.getWorld() == world.getCBWorld()) {
-                            MultiverseCore.staticLog(Level.FINE, "Handling gamemode for player: "
-                                    + player.getName() + ", Changing to " + world.getGameMode().toString());
-                            MultiverseCore.staticLog(Level.FINEST, "From World: " + player.getWorld());
-                            MultiverseCore.staticLog(Level.FINEST, "To World: " + world);
+                            Logging.fine("Handling gamemode for player: %s, Changing to %s", player.getName(), world.getGameMode().toString());
+                            Logging.finest("From World: %s", player.getWorld());
+                            Logging.finest("To World: %s", world);
                             player.setGameMode(world.getGameMode());
                         } else {
-                            MultiverseCore.staticLog(Level.FINE, "The gamemode was NOT changed for player '"
-                                    + player.getName() + "' because he is now in world '"
-                                    + player.getWorld().getName() + "' instead of world '"
-                                    + world.getName() +"'");
+                            Logging.fine("The gamemode was NOT changed for player '%s' because he is now in world '%s' instead of world '%s'",
+                                    player.getName(), player.getWorld().getName(), world.getName());
                         }
                     }
                 }, 1L);

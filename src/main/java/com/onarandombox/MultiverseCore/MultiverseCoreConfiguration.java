@@ -1,5 +1,6 @@
 package com.onarandombox.MultiverseCore;
 
+import com.dumptruckman.minecraft.util.Logging;
 import com.onarandombox.MultiverseCore.api.MultiverseCoreConfig;
 import me.main__.util.SerializationConfig.NoSuchPropertyException;
 import me.main__.util.SerializationConfig.Property;
@@ -53,6 +54,8 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
     @Property
     private volatile int globaldebug;
     @Property
+    private volatile boolean silentstart;
+    @Property
     private volatile int messagecooldown;
     @Property
     private volatile double version;
@@ -87,6 +90,7 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
         messagecooldown = 5000;
         teleportcooldown = 1000;
         this.version = 2.9;
+        silentstart = false;
         // END CHECKSTYLE-SUPPRESSION: MagicNumberCheck
     }
 
@@ -198,6 +202,7 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
     @Override
     public void setGlobalDebug(int globalDebug) {
         this.globaldebug = globalDebug;
+        Logging.setDebugLevel(globalDebug);
     }
 
     /**
@@ -272,5 +277,16 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
     @Override
     public boolean getUseAsyncChat() {
         return this.useasyncchat;
+    }
+
+    @Override
+    public void setSilentStart(boolean silentStart) {
+        Logging.setShowingConfig(!silentStart);
+        this.silentstart = silentStart;
+    }
+
+    @Override
+    public boolean getSilentStart() {
+        return silentstart;
     }
 }

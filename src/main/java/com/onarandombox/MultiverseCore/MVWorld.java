@@ -7,6 +7,7 @@
 
 package com.onarandombox.MultiverseCore;
 
+import com.dumptruckman.minecraft.util.Logging;
 import com.onarandombox.MultiverseCore.api.BlockSafety;
 import com.onarandombox.MultiverseCore.api.MultiverseWorld;
 import com.onarandombox.MultiverseCore.api.SafeTTeleporter;
@@ -39,6 +40,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.util.Vector;
+import org.json.simple.JSONObject;
 
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
@@ -75,8 +77,11 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
         PROPERTY_ALIASES.put("mode", "gameMode");
         PROPERTY_ALIASES.put("diff", "difficulty");
         PROPERTY_ALIASES.put("spawnlocation", "spawn");
+        PROPERTY_ALIASES.put("limit", "playerLimit");
         PROPERTY_ALIASES.put("animals", "spawning.animals.spawn");
         PROPERTY_ALIASES.put("monsters", "spawning.monsters.spawn");
+        PROPERTY_ALIASES.put("animalsrate", "spawning.animals.spawnrate");
+        PROPERTY_ALIASES.put("monstersrate", "spawning.monsters.spawnrate");
     }
     /*
      * We have to use setCBWorld(), setPlugin() and initPerms() to prepare this object for use.
@@ -231,6 +236,12 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
                 allowMonsters = canMonstersSpawn();
             } else {
                 allowMonsters = true;
+            }
+            if (MVWorld.this.spawning.getAnimalSettings().getSpawnRate() != -1) {
+                world.get().setTicksPerAnimalSpawns(MVWorld.this.spawning.getAnimalSettings().getSpawnRate());
+            }
+            if (MVWorld.this.spawning.getMonsterSettings().getSpawnRate() != -1) {
+                world.get().setTicksPerMonsterSpawns(MVWorld.this.spawning.getMonsterSettings().getSpawnRate());
             }
             world.get().setSpawnFlags(allowMonsters, allowAnimals);
             plugin.getMVWorldManager().getTheWorldPurger().purgeWorld(MVWorld.this);
@@ -464,12 +475,15 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
     private volatile long seed;
     @Property
     private volatile String generator;
+    @Property
+    private volatile int playerLimit;
     // End of properties
     // --------------------------------------------------------------
 
     private Permission permission;
     private Permission exempt;
     private Permission ignoreperm;
+    private Permission limitbypassperm;
 
     public MVWorld(boolean fixSpawn) {
         super();
@@ -575,15 +589,21 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
 
         this.exempt = new Permission("multiverse.exempt." + this.getName(),
                 "A player who has this does not pay to enter this world, or use any MV portals in it " + this.getName(), PermissionDefault.OP);
+        
+        this.limitbypassperm = new Permission("mv.bypass.playerlimit." + this.getName(),
+                "A player who can enter this world regardless of wether its full", PermissionDefault.OP);
         try {
             this.plugin.getServer().getPluginManager().addPermission(this.permission);
             this.plugin.getServer().getPluginManager().addPermission(this.exempt);
             this.plugin.getServer().getPluginManager().addPermission(this.ignoreperm);
+            this.plugin.getServer().getPluginManager().addPermission(this.limitbypassperm);
             // Add the permission and exempt to parents.
             this.addToUpperLists(this.permission);
 
             // Add ignore to it's parent:
             this.ignoreperm.addParent("mv.bypass.gamemode.*", true);
+            // Add limit bypass to it's parent
+            this.limitbypassperm.addParent("mv.bypass.playerlimit.*", true);
         } catch (IllegalArgumentException e) {
             this.plugin.log(Level.FINER, "Permissions nodes were already added for " + this.name);
         }
@@ -612,16 +632,16 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
             // Not sure how it will work in the nether...
             //Location newSpawn = this.spawnLocation.getWorld().getHighestBlockAt(this.spawnLocation).getLocation();
             if (newSpawn != null) {
-                this.plugin.log(Level.INFO, String.format("New Spawn for '%s' is located at: %s",
-                        this.getName(), plugin.getLocationManipulation().locationToString(newSpawn)));
+                Logging.info("New Spawn for '%s' is located at: %s",
+                        this.getName(), plugin.getLocationManipulation().locationToString(newSpawn));
                 return newSpawn;
             } else {
                 // If it's a standard end world, let's check in a better place:
                 Location newerSpawn;
                 newerSpawn = bs.getTopBlock(new Location(w, 0, 0, 0));
                 if (newerSpawn != null) {
-                    this.plugin.log(Level.INFO, String.format("New Spawn for '%s' is located at: %s",
-                            this.getName(), plugin.getLocationManipulation().locationToString(newerSpawn)));
+                    Logging.info("New Spawn for '%s' is located at: %s",
+                            this.getName(), plugin.getLocationManipulation().locationToString(newerSpawn));
                     return newerSpawn;
                 } else {
                     this.plugin.log(Level.SEVERE, "Safe spawn NOT found!!!");
@@ -655,6 +675,7 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
         this.bedRespawn = true;
         this.worldBlacklist = new ArrayList<String>();
         this.generator = null;
+        this.playerLimit = -1;
     }
 
     /**
@@ -912,6 +933,22 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
     @Override
     public void setGenerator(String generator) {
         this.setPropertyValueUnchecked("generator", generator);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getPlayerLimit() {
+        return this.playerLimit;
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setPlayerLimit(int limit) {
+        this.setPropertyValueUnchecked("playerLimit", limit);
     }
 
     /**
@@ -1397,11 +1434,13 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
 
     @Override
     public String toString() {
-        StringBuilder toStringBuilder = new StringBuilder();
-        toStringBuilder.append(this.getClass().getSimpleName());
-        toStringBuilder.append('@');
-        toStringBuilder.append(this.hashCode());
-        toStringBuilder.append(" (Name: '").append(this.getName()).append("')");
-        return toStringBuilder.toString();
+        final JSONObject jsonData = new JSONObject();
+        jsonData.put("Name", getName());
+        jsonData.put("Env", getEnvironment().toString());
+        jsonData.put("Type", getWorldType().toString());
+        jsonData.put("Gen", getGenerator());
+        final JSONObject topLevel = new JSONObject();
+        topLevel.put(getClass().getSimpleName() + "@" + hashCode(), jsonData);
+        return topLevel.toString();
     }
 }

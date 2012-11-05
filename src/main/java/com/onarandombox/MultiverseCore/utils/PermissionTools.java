@@ -143,17 +143,40 @@ public class PermissionTools {
             if (this.plugin.getMVPerms().hasPermission(teleporter, toWorld.getExemptPermission().getName(), true)) {
                 return true;
             }
-            GenericBank bank = plugin.getBank();
-            String errString = "You need " + bank.getFormattedAmount(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency())
-                    + " to send " + teleportee + " to " + toWorld.getColoredWorldString();
-            if (teleportee.equals(teleporter)) {
-                errString = "You need " + bank.getFormattedAmount(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency())
-                        + " to enter " + toWorld.getColoredWorldString();
+            final boolean usingVault;
+            final String formattedAmount;
+            if (toWorld.getCurrency() <= 0 && plugin.getVaultHandler().getEconomy() != null) {
+                usingVault = true;
+                formattedAmount = plugin.getVaultHandler().getEconomy().format(toWorld.getPrice());
+            } else {
+                usingVault = false;
+                formattedAmount = this.plugin.getBank().getFormattedAmount(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency());
             }
-            if (!bank.hasEnough(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency(), errString)) {
-                return false;
-            } else if (pay) {
-                bank.give(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency());
+            String errString = "You need " + formattedAmount + " to send " + teleportee + " to " + toWorld.getColoredWorldString();
+            if (teleportee.equals(teleporter)) {
+                errString = "You need " + formattedAmount + " to enter " + toWorld.getColoredWorldString();
+            }
+            if (usingVault) {
+                if (!plugin.getVaultHandler().getEconomy().has(teleporterPlayer.getName(), toWorld.getPrice())) {
+                    return false;
+                } else if (pay) {
+                    if (toWorld.getPrice() < 0D) {
+                        plugin.getVaultHandler().getEconomy().depositPlayer(teleporterPlayer.getName(), toWorld.getPrice() * -1D);
+                    } else {
+                        plugin.getVaultHandler().getEconomy().withdrawPlayer(teleporterPlayer.getName(), toWorld.getPrice());
+                    }
+                }
+            } else {
+                GenericBank bank = plugin.getBank();
+                if (!bank.hasEnough(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency(), errString)) {
+                    return false;
+                } else if (pay) {
+                    if (toWorld.getPrice() < 0D) {
+                        bank.give(teleporterPlayer, toWorld.getPrice() * -1D, toWorld.getCurrency());
+                    } else {
+                        bank.take(teleporterPlayer, toWorld.getPrice(), toWorld.getCurrency());
+                    }
+                }
             }
         }
         return true;
@@ -233,6 +256,25 @@ public class PermissionTools {
             }
         }
         return true;
+    }
+    
+    public boolean playerCanBypassPlayerLimit(MultiverseWorld toWorld, CommandSender teleporter, Player teleportee) {
+        
+        if (teleporter == null) {
+            teleporter = teleportee;
+        }
+        
+        if (!(teleporter instanceof Player)) {
+            return true;  
+        }
+        
+        MVPermissions perms = plugin.getMVPerms();
+        if (perms.hasPermission(teleportee, "mv.bypass.playerlimit." + toWorld.getName(), false)) {
+            return true;
+        } else {
+            teleporter.sendMessage("The world " + toWorld.getColoredWorldString() + " is full");
+            return false;
+        }
     }
 
     /**
