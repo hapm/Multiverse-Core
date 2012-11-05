@@ -474,13 +474,6 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         } catch (Exception ignore) {
         } finally {
             config = ((wantedConfig == null) ? new MultiverseCoreConfiguration() : wantedConfig);
-            configLock.lock();
-            try {
-                //log(Level.FINER, "Setting config on thread: " + thread);
-                config = ((wantedConfig == null) ? new MultiverseCoreConfiguration(this) : wantedConfig);
-            } finally {
-                configLock.unlock();
-            }
         }
         this.migrateWorldConfig();
         this.worldManager.loadWorldConfig(new File(getDataFolder(), "worlds.yml"));

@@ -6,8 +6,6 @@ import me.main__.util.SerializationConfig.Property;
 import me.main__.util.SerializationConfig.SerializationConfig;
 
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 
 /**
  * Our configuration.
@@ -63,19 +61,15 @@ public class MultiverseCoreConfiguration extends SerializationConfig implements 
     @Property
     private volatile int teleportcooldown;
 
-    public MultiverseCoreConfiguration(MultiverseCore core) {
+    public MultiverseCoreConfiguration() {
         super();
-        this.core = core;
         MultiverseCoreConfiguration.setInstance(this);
     }
 
-    public MultiverseCoreConfiguration(MultiverseCore core, Map<String, Object> values) {
+    public MultiverseCoreConfiguration(Map<String, Object> values) {
         super(values);
-        this.core = core;
         MultiverseCoreConfiguration.setInstance(this);
     }
-
-    private MultiverseCore core;
 
     /**
      * {@inheritDoc}
