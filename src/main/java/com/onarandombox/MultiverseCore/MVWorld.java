@@ -102,8 +102,8 @@ public class MVWorld extends SerializationConfig implements MultiverseWorld {
         @Override
         public Double validateChange(String property, Double newValue, Double oldValue,
                 MVWorld object) throws ChangeDeniedException {
-            if (newValue <= 0) {
-                plugin.log(Level.FINE, "Someone tried to set a scale <= 0, aborting!");
+            if (newValue < 0) {
+                plugin.log(Level.FINE, "Someone tried to set a scale < 0, aborting!");
                 throw new ChangeDeniedException();
             }
             return super.validateChange(property, newValue, oldValue, object);
