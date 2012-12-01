@@ -5,7 +5,7 @@
  * with this project.                                                         *
  ******************************************************************************/
 
-package com.onarandombox.MultiverseCore.test.utils;
+package com.onarandombox.MultiverseCore.utils;
 
 import buscript.Buscript;
 import com.onarandombox.MultiverseCore.MultiverseCore;
@@ -13,8 +13,6 @@ import com.onarandombox.MultiverseCore.api.MultiverseWorld;
 import com.onarandombox.MultiverseCore.listeners.MVEntityListener;
 import com.onarandombox.MultiverseCore.listeners.MVPlayerListener;
 import com.onarandombox.MultiverseCore.listeners.MVWeatherListener;
-import com.onarandombox.MultiverseCore.utils.FileUtils;
-import com.onarandombox.MultiverseCore.utils.WorldManager;
 import junit.framework.Assert;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -38,6 +36,7 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -115,6 +114,19 @@ public class TestInstanceCreator {
                     String arg;
                     try {
                         arg = (String) invocation.getArguments()[0];
+                    } catch (Exception e) {
+                        return null;
+                    }
+                    return MockWorldFactory.getWorld(arg);
+                }
+            });
+
+            when(mockServer.getWorld(any(UUID.class))).thenAnswer(new Answer<World>() {
+                @Override
+                public World answer(InvocationOnMock invocation) throws Throwable {
+                    UUID arg;
+                    try {
+                        arg = (UUID) invocation.getArguments()[0];
                     } catch (Exception e) {
                         return null;
                     }

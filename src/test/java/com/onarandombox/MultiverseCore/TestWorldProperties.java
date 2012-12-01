@@ -5,21 +5,20 @@
  * with this project.                                                         *
  ******************************************************************************/
 
-package com.onarandombox.MultiverseCore.test;
+package com.onarandombox.MultiverseCore;
 
-import com.onarandombox.MultiverseCore.MVWorld;
-import com.onarandombox.MultiverseCore.MultiverseCore;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.api.MultiverseWorld;
 import com.onarandombox.MultiverseCore.configuration.SpawnLocation;
 import com.onarandombox.MultiverseCore.listeners.MVAsyncPlayerChatListener;
-import com.onarandombox.MultiverseCore.test.utils.TestInstanceCreator;
+import com.onarandombox.MultiverseCore.utils.TestInstanceCreator;
 import com.onarandombox.MultiverseCore.utils.WorldManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -299,7 +298,7 @@ public class TestWorldProperties {
         assertTrue(core.saveMVConfigs());
         // change a value here
         FileConfiguration config = YamlConfiguration.loadConfiguration(new File(core.getDataFolder(), "worlds.yml"));
-        MVWorld worldObj = (MVWorld) config.get("worlds.world");
+        WorldProperties worldObj = (WorldProperties) config.get("worlds.world");
         assertTrue(worldObj.setColor("GREEN"));
         config.set("worlds.world", worldObj);
         config.save(new File(core.getDataFolder(), "worlds.yml"));
@@ -332,17 +331,18 @@ public class TestWorldProperties {
     }
 
     public void createEvents(MultiverseWorld mvWorld) {
+        final World world = mvWorld.getCBWorld();
         //// Weather events
         // weather change
-        weatherChangeOffEvent = new WeatherChangeEvent(mvWorld.getCBWorld(), false);
-        weatherChangeOnEvent = new WeatherChangeEvent(mvWorld.getCBWorld(), true);
+        weatherChangeOffEvent = new WeatherChangeEvent(world, false);
+        weatherChangeOnEvent = new WeatherChangeEvent(world, true);
         // thunder change
-        thunderChangeOffEvent = new ThunderChangeEvent(mvWorld.getCBWorld(), false);
-        thunderChangeOnEvent = new ThunderChangeEvent(mvWorld.getCBWorld(), true);
+        thunderChangeOffEvent = new ThunderChangeEvent(world, false);
+        thunderChangeOnEvent = new ThunderChangeEvent(world, true);
         //// Player events
         // player chat
         mockPlayer = mock(Player.class);
-        when(mockPlayer.getWorld()).thenReturn(mvWorld.getCBWorld());
+        when(mockPlayer.getWorld()).thenReturn(world);
         when(mockPlayer.hasPlayedBefore()).thenReturn(true);
         when(mockPlayer.hasPermission("multiverse.access.world")).thenReturn(true);
         when(mockPlayer.getName()).thenReturn("MultiverseMan");
@@ -368,7 +368,7 @@ public class TestWorldProperties {
         // entity regain health
         entityRegainHealthEvent = PowerMockito.mock(EntityRegainHealthEvent.class);
         when(entityRegainHealthEvent.getRegainReason()).thenReturn(RegainReason.REGEN);
-        when(mockHumanEntity.getLocation()).thenReturn(new Location(mvWorld.getCBWorld(), 0, 0, 0));
+        when(mockHumanEntity.getLocation()).thenReturn(new Location(world, 0, 0, 0));
         when(entityRegainHealthEvent.getEntity()).thenReturn(mockHumanEntity);
         // entity food level change event
         entityFoodLevelChangeEvent = PowerMockito.mock(FoodLevelChangeEvent.class);

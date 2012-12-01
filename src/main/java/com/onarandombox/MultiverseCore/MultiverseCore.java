@@ -11,6 +11,7 @@ import buscript.Buscript;
 import com.dumptruckman.minecraft.util.Logging;
 import com.fernferret.allpay.AllPay;
 import com.fernferret.allpay.GenericBank;
+import com.onarandombox.MultiverseCore.MVWorld.NullLocation;
 import com.onarandombox.MultiverseCore.api.BlockSafety;
 import com.onarandombox.MultiverseCore.api.Core;
 import com.onarandombox.MultiverseCore.api.LocationManipulation;
@@ -61,10 +62,10 @@ import com.onarandombox.MultiverseCore.destination.ExactDestination;
 import com.onarandombox.MultiverseCore.destination.PlayerDestination;
 import com.onarandombox.MultiverseCore.destination.WorldDestination;
 import com.onarandombox.MultiverseCore.event.MVVersionEvent;
-import com.onarandombox.MultiverseCore.exceptions.PropertyDoesNotExistException;
 import com.onarandombox.MultiverseCore.listeners.MVAsyncPlayerChatListener;
 import com.onarandombox.MultiverseCore.listeners.MVChatListener;
 import com.onarandombox.MultiverseCore.listeners.MVEntityListener;
+import com.onarandombox.MultiverseCore.listeners.MVMapListener;
 import com.onarandombox.MultiverseCore.listeners.MVPlayerChatListener;
 import com.onarandombox.MultiverseCore.listeners.MVPlayerListener;
 import com.onarandombox.MultiverseCore.listeners.MVPluginListener;
@@ -80,8 +81,11 @@ import com.onarandombox.MultiverseCore.utils.SimpleSafeTTeleporter;
 import com.onarandombox.MultiverseCore.utils.VaultHandler;
 import com.onarandombox.MultiverseCore.utils.WorldManager;
 import com.pneumaticraft.commandhandler.CommandHandler;
+import me.main__.util.SerializationConfig.NoSuchPropertyException;
 import me.main__.util.SerializationConfig.SerializationConfig;
 import org.bukkit.ChatColor;
+import org.bukkit.Difficulty;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World.Environment;
 import org.bukkit.command.Command;
@@ -221,7 +225,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         // Register our config
         SerializationConfig.registerAll(MultiverseCoreConfiguration.class);
         // Register our world
-        SerializationConfig.registerAll(MVWorld.class);
+        SerializationConfig.registerAll(WorldProperties.class);
         // Create our DataFolder
         getDataFolder().mkdirs();
         // Setup our Debug Log
@@ -461,7 +465,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         pm.registerEvents(this.pluginListener, this);
         pm.registerEvents(this.weatherListener, this);
         pm.registerEvents(this.portalListener, this);
-
+        pm.registerEvents(new MVMapListener(this), this);
     }
 
     /**
@@ -566,13 +570,13 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         boolean wasChanged = false;
         Map<String, Object> newValues = new LinkedHashMap<String, Object>(values.size());
         for (Map.Entry<String, Object> entry : values.entrySet()) {
-            if (entry.getValue() instanceof MVWorld) {
+            if (entry.getValue() instanceof WorldProperties) {
                 // fine
                 newValues.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof ConfigurationSection) {
                 this.log(Level.FINE, "Migrating: " + entry.getKey());
                 // we have to migrate this
-                MVWorld world = new MVWorld(Collections.EMPTY_MAP);
+                WorldProperties world = new WorldProperties(Collections.EMPTY_MAP);
                 ConfigurationSection section = (ConfigurationSection) entry.getValue();
 
                 // migrate animals and monsters
@@ -642,10 +646,9 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
 
                 // migrate gamemode
                 if (section.isString("gamemode")) {
-                    try {
-                        world.setPropertyValue("gamemode", section.getString("gamemode"));
-                    } catch (PropertyDoesNotExistException e) {
-                        throw new RuntimeException("Who forgot to update the migrator?", e);
+                    final GameMode gameMode = GameMode.valueOf(section.getString("gamemode").toUpperCase());
+                    if (gameMode != null) {
+                        world.setGameMode(gameMode);
                     }
                 }
 
@@ -667,8 +670,8 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
                 // migrate portalform
                 if (section.isString("portalform")) {
                     try {
-                        world.setPropertyValue("portalform", section.getString("portalform"));
-                    } catch (PropertyDoesNotExistException e) {
+                        world.setProperty("portalform", section.getString("portalform"), true);
+                    } catch (NoSuchPropertyException e) {
                         throw new RuntimeException("Who forgot to update the migrator?", e);
                     }
                 }
@@ -676,8 +679,8 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
                 // migrate environment
                 if (section.isString("environment")) {
                     try {
-                        world.setPropertyValue("environment", section.getString("environment"));
-                    } catch (PropertyDoesNotExistException e) {
+                        world.setProperty("environment", section.getString("environment"), true);
+                    } catch (NoSuchPropertyException e) {
                         throw new RuntimeException("Who forgot to update the migrator?", e);
                     }
                 }
@@ -715,7 +718,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
                 // migrate spawn
                 if (section.isConfigurationSection("spawn")) {
                     ConfigurationSection spawnSect = section.getConfigurationSection("spawn");
-                    Location spawnLoc = world.getSpawnLocation();
+                    Location spawnLoc = new NullLocation();
                     if (spawnSect.isDouble("yaw"))
                         spawnLoc.setYaw((float) spawnSect.getDouble("yaw"));
                     if (spawnSect.isDouble("pitch"))
@@ -728,6 +731,19 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
                         spawnLoc.setZ(spawnSect.getDouble("z"));
 
                     world.setSpawnLocation(spawnLoc);
+                }
+
+                // migrate difficulty
+                if (section.isString("difficulty")) {
+                    final Difficulty difficulty = Difficulty.valueOf(section.getString("difficulty").toUpperCase());
+                    if (difficulty != null) {
+                        world.setDifficulty(difficulty);
+                    }
+                }
+
+                // migrate keepspawninmemory
+                if (section.isBoolean("keepspawninmemory")) {
+                    world.setKeepSpawnInMemory(section.getBoolean("keepspawninmemory"));
                 }
 
                 newValues.put(entry.getKey(), world);
