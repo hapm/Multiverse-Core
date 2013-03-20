@@ -10,7 +10,7 @@ package com.onarandombox.MultiverseCore;
 import buscript.Buscript;
 import com.dumptruckman.minecraft.util.Logging;
 import com.fernferret.allpay.AllPay;
-import com.fernferret.allpay.GenericBank;
+import com.fernferret.allpay.commons.GenericBank;
 import com.onarandombox.MultiverseCore.MVWorld.NullLocation;
 import com.onarandombox.MultiverseCore.api.BlockSafety;
 import com.onarandombox.MultiverseCore.api.Core;
@@ -80,6 +80,7 @@ import com.onarandombox.MultiverseCore.utils.MVPlayerSession;
 import com.onarandombox.MultiverseCore.utils.SimpleBlockSafety;
 import com.onarandombox.MultiverseCore.utils.SimpleLocationManipulation;
 import com.onarandombox.MultiverseCore.utils.SimpleSafeTTeleporter;
+import com.onarandombox.MultiverseCore.utils.UnsafeCallWrapper;
 import com.onarandombox.MultiverseCore.utils.VaultHandler;
 import com.onarandombox.MultiverseCore.utils.WorldManager;
 import com.pneumaticraft.commandhandler.CommandHandler;
@@ -219,6 +220,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
     private BlockSafety blockSafety;
     private LocationManipulation locationManipulation;
     private SafeTTeleporter safeTTeleporter;
+    private UnsafeCallWrapper unsafeCallWrapper;
 
     private File serverFolder = new File(System.getProperty("user.dir"));
 
@@ -239,16 +241,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         this.locationManipulation = new SimpleLocationManipulation();
         // Setup our SafeTTeleporter
         this.safeTTeleporter = new SimpleSafeTTeleporter(this);
-    }
-
-    /**
-     * {@inheritDoc}
-     * @deprecated This is deprecated.
-     */
-    @Override
-    @Deprecated
-    public FileConfiguration getMVConfiguration() {
-        return this.multiverseConfig;
+        this.unsafeCallWrapper = new UnsafeCallWrapper(this);
     }
 
     /**
@@ -1235,6 +1228,9 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
      */
     @Override
     public void setBlockSafety(BlockSafety bs) {
+        if (bs == null) {
+            throw new NullPointerException("block safety may not be null.");
+        }
         this.blockSafety = bs;
     }
 
@@ -1292,5 +1288,9 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
     @Override
     public Buscript getScriptAPI() {
         return buscript;
+    }
+
+    public UnsafeCallWrapper getUnsafeCallWrapper() {
+        return this.unsafeCallWrapper;
     }
 }
