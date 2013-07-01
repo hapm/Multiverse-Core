@@ -73,6 +73,7 @@ import com.onarandombox.MultiverseCore.listeners.MVPlayerListener;
 import com.onarandombox.MultiverseCore.listeners.MVPluginListener;
 import com.onarandombox.MultiverseCore.listeners.MVPortalListener;
 import com.onarandombox.MultiverseCore.listeners.MVWeatherListener;
+import com.onarandombox.MultiverseCore.listeners.MVWorldListener;
 import com.onarandombox.MultiverseCore.utils.AnchorManager;
 import com.onarandombox.MultiverseCore.utils.MVMessaging;
 import com.onarandombox.MultiverseCore.utils.MVPermissions;
@@ -95,6 +96,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -205,6 +207,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
     private final MVPluginListener pluginListener = new MVPluginListener(this);
     private final MVWeatherListener weatherListener = new MVWeatherListener(this);
     private final MVPortalListener portalListener = new MVPortalListener(this);
+    private final MVWorldListener worldListener = new MVWorldListener(this);
     private MVChatListener chatListener;
 
     // HashMap to contain information relating to the Players.
@@ -460,6 +463,7 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         pm.registerEvents(this.pluginListener, this);
         pm.registerEvents(this.weatherListener, this);
         pm.registerEvents(this.portalListener, this);
+        pm.registerEvents(this.worldListener, this);
         pm.registerEvents(new MVMapListener(this), this);
     }
 
@@ -548,12 +552,22 @@ public class MultiverseCore extends JavaPlugin implements MVPlugin, Core {
         }
     }
 
+    private static final char PATH_SEPARATOR = '\uF8FF';
+
     /**
      * Migrate the worlds.yml to SerializationConfig.
      */
     private void migrateWorldConfig() { // SUPPRESS CHECKSTYLE: MethodLength
-        FileConfiguration wconf = YamlConfiguration
-                .loadConfiguration(new File(getDataFolder(), "worlds.yml"));
+        FileConfiguration wconf = new YamlConfiguration();
+        wconf.options().pathSeparator(PATH_SEPARATOR);
+        File worldsFile = new File(getDataFolder(), "worlds.yml");
+        try {
+            wconf.load(worldsFile);
+        } catch (IOException e) {
+            log(Level.WARNING, "Cannot load worlds.yml");
+        } catch (InvalidConfigurationException e) {
+            log(Level.WARNING, "Your worlds.yml is invalid!");
+        }
 
         if (!wconf.isConfigurationSection("worlds")) { // empty config
             this.log(Level.FINE, "No worlds to migrate!");
